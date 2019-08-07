@@ -45,7 +45,7 @@
                             <field name="submission_date"/>
                             <field name="user_boolean" invisible="1"/>
                             <field name="marks"
-                                   attrs="{'readonly':[('state','=','accept')], 'invisible': [('user_boolean', '=', False), ('state','!=','accept')]}"/>
+                                   attrs="{'readonly':[('state','=','accept')], 'invisible':[('user_boolean','=',False),('state','!=','accept')]}"/>
                         </group>
                         <group string="Description">
                             <field name="description" nolabel="1"/>
@@ -68,10 +68,10 @@
             <field name="priority" eval="8"/>
             <field name="arch" type="xml">
                 <pivot string="Assignment Sub Line">
-                    <field name="assignment_id"/>
+                    <field name="assignment_id" type="col"/>
                     <field name="student_id"/>
                     <field name="submission_date"/>
-                    <field name="state"/>
+                    <field name="state" type="row"/>
                 </pivot>
             </field>
         </record>
@@ -88,20 +88,24 @@
                     <field name="state"/>
                     <field name="submission_date"/>
                     <field name="note"/>
-                    <newline/>
+                    <filter string="Today" name="filter_submission_today"
+                            domain="[('submission_date', '&gt;=', time.strftime('%%Y-%%m-%%d 00:00:00')),('submission_date', '&lt;=', time.strftime('%%Y-%%m-%%d 23:59:59'))]"/>
+                    <filter string="Week" name="filter_submission_week"
+                            domain="[('submission_date', '&gt;=',(context_today()+relativedelta(weeks=-1,days=1,weekday=0)).strftime('%Y-%m-%d 00:00:00')),
+                                    ('submission_date', '&lt;', (context_today()+relativedelta(weekday=6)).strftime('%Y-%m-%d 23:59:59'))]"/>
+                    <filter string="Month" name="filter_submission_month"
+                            domain="[('submission_date', '&lt;=', (datetime.date.today()+relativedelta(day=31)).strftime('%Y-%m-%d')),
+                                    ('submission_date', '&gt;=', (datetime.date.today()-relativedelta(day=1)).strftime('%Y-%m-%d'))]"/>
+
                     <group expand="0" string="Group By...">
                         <filter string="Assignment" domain="[]" name="group_by_assignment_id"
                                 context="{'group_by':'assignment_id'}"/>
                         <filter string="Student" domain="[]" name="group_by_assignment_student_id"
                                 context="{'group_by':'student_id'}"/>
-                        <filter string="Description" domain="[]" name="group_by_assignment_description"
-                                context="{'group_by':'description'}"/>
                         <filter string="State" domain="[]" name="group_by_assignment_state"
                                 context="{'group_by':'state'}"/>
                         <filter string="Submission Date" domain="[]" name="group_by_assignment_submission"
                                 context="{'group_by':'submission_date'}"/>
-                        <filter string="Note" domain="[]" name="group_by_assignment_note"
-                                context="{'group_by':'note'}"/>
                         <filter string="Marks" domain="[]" name="group_by_assignment_marks"
                                 context="{'group_by':'marks'}"/>
                     </group>
@@ -116,8 +120,6 @@
             <field name="view_type">form</field>
             <field name="view_mode">tree,form</field>
             <field name="search_view_id" ref="view_op_assignment_sub_line_search"/>
-            <field name="domain">[]</field>
-            <field name="context">{}</field>
         </record>
 
         <record model="ir.actions.act_window.view" id="act_open_op_assignment_sub_line_view_form">

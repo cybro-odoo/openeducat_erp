@@ -20,8 +20,8 @@
 ##############################################################################
 
 from datetime import datetime
-from dateutil.relativedelta import relativedelta
 
+from dateutil.relativedelta import relativedelta
 from odoo import models, fields, api, _
 from odoo.exceptions import ValidationError, UserError
 
@@ -30,8 +30,8 @@ class OpAdmission(models.Model):
     _name = "op.admission"
     _inherit = "mail.thread"
     _rec_name = "application_number"
-    _order = "application_number desc"
     _description = "Admission"
+    _order = 'id DESC'
 
     name = fields.Char(
         'First Name', size=128, required=True,
@@ -45,8 +45,8 @@ class OpAdmission(models.Model):
     title = fields.Many2one(
         'res.partner.title', 'Title', states={'done': [('readonly', True)]})
     application_number = fields.Char(
-        'Application Number', size=16, required=True, copy=False,
-        states={'done': [('readonly', True)]},
+        'Application Number', size=16, copy=False,
+        required=True, readonly=True, store=True,
         default=lambda self:
         self.env['ir.sequence'].next_by_code('op.admission'))
     admission_date = fields.Date(
@@ -120,6 +120,15 @@ class OpAdmission(models.Model):
     is_student = fields.Boolean('Is Already Student')
     fees_term_id = fields.Many2one('op.fees.terms', 'Fees Term')
 
+    _sql_constraints = [
+        ('unique_application_number',
+         'unique(application_number)',
+         'Application Number must be unique per Application!'),
+        ('unique_application_email',
+         'unique(email)',
+         'Email must be unique per Application!')
+    ]
+
     @api.onchange('student_id', 'is_student')
     def onchange_student(self):
         if self.is_student and self.student_id:
@@ -142,10 +151,6 @@ class OpAdmission(models.Model):
             self.state_id = sd.state_id and sd.state_id.id or False
             self.partner_id = sd.partner_id and sd.partner_id.id or False
         else:
-            self.title = ''
-            self.name = ''
-            self.middle_name = ''
-            self.last_name = ''
             self.birth_date = ''
             self.gender = ''
             self.image = False
@@ -251,6 +256,7 @@ class OpAdmission(models.Model):
                         student.batch_id and student.batch_id.id or False,
                 }]],
                 'user_id': student_user.id,
+                'partner_id': student_user.partner_id.id,
             })
             return details
 
@@ -267,9 +273,9 @@ class OpAdmission(models.Model):
                     raise ValidationError(_(msg))
             if not record.student_id:
                 vals = record.get_student_vals()
-                record.partner_id = self.env['res.users'].browse(
-                    vals.get('user_id')).partner_id.id
-                student_id = self.env['op.student'].create(vals).id
+                record.partner_id = vals.get('partner_id')
+                record.student_id = student_id = self.env[
+                    'op.student'].create(vals).id
             else:
                 student_id = record.student_id.id
                 record.student_id.write({
@@ -292,12 +298,13 @@ class OpAdmission(models.Model):
                     dict_val = {
                         'fees_line_id': line.id,
                         'amount': amount,
+                        'fees_factor': per_amount,
                         'date': date,
                         'product_id': product_id,
                         'state': 'draft',
                     }
                     val.append([0, False, dict_val])
-                self.env['op.student'].browse(student_id).write({
+                record.student_id.write({
                     'fees_detail_ids': val
                 })
             record.write({
@@ -305,6 +312,7 @@ class OpAdmission(models.Model):
                 'state': 'done',
                 'admission_date': fields.Date.today(),
                 'student_id': student_id,
+                'is_student': True,
             })
             reg_id = self.env['op.subject.registration'].create({
                 'student_id': student_id,
@@ -331,6 +339,8 @@ class OpAdmission(models.Model):
     @api.multi
     def confirm_cancel(self):
         self.state = 'cancel'
+        if self.is_student and self.student_id.fees_detail_ids:
+            self.student_id.fees_detail_ids.state = 'cancel'
 
     @api.multi
     def payment_process(self):
@@ -362,7 +372,6 @@ class OpAdmission(models.Model):
 
         inv_obj = self.env['account.invoice']
         partner_id = self.env['res.partner'].create({'name': self.name})
-
         account_id = False
         product = self.register_id.product_id
         if product.id:
@@ -374,14 +383,11 @@ class OpAdmission(models.Model):
                 _('There is no income account defined for this product: "%s". \
                    You may have to install a chart of account from Accounting \
                    app, settings menu.') % (product.name,))
-
         if self.fees <= 0.00:
             raise UserError(
                 _('The value of the deposit amount must be positive.'))
-        else:
-            amount = self.fees
-            name = product.name
-
+        amount = self.fees
+        name = product.name
         invoice = inv_obj.create({
             'name': self.name,
             'origin': self.application_number,
@@ -401,7 +407,6 @@ class OpAdmission(models.Model):
             })],
         })
         invoice.compute_taxes()
-
         form_view = self.env.ref('account.invoice_form')
         tree_view = self.env.ref('account.invoice_tree')
         value = {

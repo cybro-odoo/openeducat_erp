@@ -69,12 +69,11 @@ class OpStudent(models.Model):
         ('m', 'Male'),
         ('f', 'Female'),
         ('o', 'Other')
-    ], 'Gender', required=True)
+    ], 'Gender', required=True, default='m')
     nationality = fields.Many2one('res.country', 'Nationality')
     emergency_contact = fields.Many2one('res.partner', 'Emergency Contact')
     visa_info = fields.Char('Visa Info', size=64)
     id_number = fields.Char('ID Card Number', size=64)
-    already_partner = fields.Boolean('Already Partner')
     partner_id = fields.Many2one('res.partner', 'Partner',
                                  required=True, ondelete="cascade")
     gr_no = fields.Char("GR Number", size=20)
@@ -103,3 +102,17 @@ class OpStudent(models.Model):
             'label': _('Import Template for Students'),
             'template': '/openeducat_core/static/xls/op_student.xls'
         }]
+
+    @api.multi
+    def create_student_user(self):
+        user_group = self.env.ref("openeducat_core.group_op_student") or False
+        users_res = self.env['res.users']
+        for record in self:
+            if not record.user_id:
+                user_id = users_res.create({
+                    'name': record.name,
+                    'partner_id': record.partner_id.id,
+                    'login': record.email,
+                    'groups_id': user_group,
+                })
+                record.user_id = user_id

@@ -7,16 +7,15 @@
             <field name="priority" eval="8"/>
             <field name="arch" type="xml">
                 <tree string="Registration">
+                    <field name="application_number"/>
                     <field name="title"/>
                     <field name="name"/>
                     <field name="middle_name"/>
                     <field name="last_name"/>
-                    <field name="application_number"/>
                     <field name="admission_date"/>
                     <field name="application_date"/>
-                    <field name="birth_date"/>
                     <field name="course_id"/>
-                    <field name="batch_id"/>
+                    <field name="batch_id" invisible="1"/>
                     <field name="state"/>
                 </tree>
             </field>
@@ -29,33 +28,18 @@
             <field name="arch" type="xml">
                 <form string="Registration">
                     <header groups="base.group_user">
-                        <button string="Submit" states="draft" class="oe_highlight"
-                                type="object" name="submit_form"/>
-                        <button name="confirm_in_progress" states="submit" string="Confirm"
-                                type="object" class="oe_highlight"/>
-                        <button string="Admission Confirm" class="oe_highlight" states="confirm" type="object"
-                                name="admission_confirm"/>
-                        <button name="enroll_student" states="admission" string="Enroll"
-                                type="object" class="oe_highlight"/>
-                        <button name="confirm_rejected" states="payment_process,fees_paid,,pending" string="Reject"
-                                type="object"/>
-                        <button name="confirm_pending" states="fees_paid" string="Pending"
-                                type="object"/>
-                        <button name="confirm_cancel" states="draft,confirm" string="Cancel"
-                                type="object"/>
-                        <button name="confirm_to_draft" states="pending,reject,cancel" string="Set to Draft"
-                                type="object"/>
-                        <button name="open_student" states="done" string="Open Student Profile"
-                                type="object"/>
+                        <button string="Submit" states="draft" class="oe_highlight" type="object" name="submit_form"/>
+                        <button name="confirm_in_progress" states="submit,pending" string="Confirm" type="object" class="oe_highlight"/>
+                        <button string="Admission Confirm" class="oe_highlight" states="confirm" type="object" name="admission_confirm"/>
+                        <button name="enroll_student" states="admission" string="Enroll" type="object" class="oe_highlight"/>
+                        <button name="confirm_rejected" states="confirm,confirm_pending" string="Reject" type="object"/>
+                        <button name="confirm_pending" states="submit" string="Pending" type="object"/>
+                        <button name="confirm_cancel" string="Cancel" type="object"/>
+                        <button name="confirm_to_draft" states="pending,reject,cancel" string="Set to Draft" type="object"/>
+                        <button name="open_student" states="done" string="Open Student Profile" type="object"/>
                         <field name="state" widget="statusbar" statusbar_visible="draft,confirm,done"/>
                     </header>
                     <sheet>
-                        <div class="oe_title">
-                            <field name="is_student"/>
-                            <label for="student_id" string="Already Student"/>
-                            <field name="student_id" placeholder="Student" options="{'no_create_edit': True}"
-                                   attrs="{'required':[('is_student','=',True)],'invisible': [('is_student','=', False)]}"/>
-                        </div>
                         <field name="image" widget="image" class="oe_left oe_avatar"/>
                         <div class="oe_title">
                             <h1>
@@ -93,7 +77,10 @@
                                     <field name="due_date"/>
                                     <field name="fees_term_id" required="1"
                                            attrs="{'readonly': [('state','not in', ['draft', 'submit', 'confirm'])]}"/>
-                                    <field name="partner_id" attrs="{'invisible': [('is_student','!=', False)]}"/>
+                                    <field name="is_student"/>
+                                    <field name="partner_id"/>
+                                    <field name="student_id" placeholder="Student" options="{'no_create_edit': True}"
+                                           attrs="{'required':[('is_student','=',True)],'invisible': [('is_student','=', False)]}"/>
                                 </group>
                             </page>
                             <page name="educational_detail" string="Educational Detail">
@@ -157,8 +144,6 @@
                     <newline/>
                     <filter name="enrolled_student" string="Enrolled" domain="[('state','=','done')]"/>
                     <group expand="0" string="Group By...">
-                        <filter string="Last Name" name="group_by_adm_last_name"
-                                domain="[]" context="{'group_by':'last_name'}"/>
                         <filter string="Admission Date" name="group_by_adm_admission_date"
                                 domain="[]" context="{'group_by':'admission_date'}"/>
                         <filter string="Application Date" name="group_by_adm_application_date"
@@ -169,6 +154,9 @@
                                 domain="[]" context="{'group_by':'batch_id'}"/>
                         <filter string="Status" name="group_by_adm_state"
                                 domain="[]" context="{'group_by':'state'}"/>
+                        <filter string="Register" name="group_by_adm_register"
+                                domain="[('register_id.state', 'not in', ['cancel', 'done'])]"
+                                context="{'group_by':'register_id'}"/>
                     </group>
                 </search>
             </field>
@@ -199,7 +187,7 @@
                     <field name="admission_date"/>
                     <field name="application_date"/>
                     <field name="birth_date"/>
-                    <field name="course_id"/>
+                    <field name="course_id" type="row"/>
                     <field name="batch_id"/>
                     <field name="state"/>
                 </pivot>
